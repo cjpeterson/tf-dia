@@ -158,9 +158,15 @@ def patchmatch(map, ffrom, fto, fpfrom, fpto, pwidth, searchrad, numiters=5):
                 upperw = min((pwidth-1)//2,map_w-m2-1)
                 
                 #Check if pixels yield valid patches
-                if (p2[0]+lowerh < 0) or (p2[0]+upperh >= ito_h):
+                #if (p2[0]+lowerh < 0) or (p2[0]+upperh >= ito_h):
+                #    p2 = p1
+                #if (p3[1]+lowerw < 0) or (p3[1]+upperw >= ito_w):
+                #    p3 = p1
+                
+                #Check if pixel exists
+                if (p2[0] < 0) or (p2[0] >= ito_h):
                     p2 = p1
-                if (p3[1]+lowerw < 0) or (p3[1]+upperw >= ito_w):
+                if (p3[1] < 0) or (p3[1] >= ito_w):
                     p3 = p1
                 
                 #Calculate loss
@@ -174,8 +180,14 @@ def patchmatch(map, ffrom, fto, fpfrom, fpto, pwidth, searchrad, numiters=5):
                         continue
                     p = ps[i]
                     loss = 0
+                    num_pix = 0
                     for offset1 in range(lowerh,upperh+1):
+                        if ((p[0]+offset1 < 0) or (p[0]+offset1 >= ito_h)):
+                            continue
                         for offset2 in range(lowerw,upperw+1):
+                            if ((p[1]+offset2 < 0) or (p[1]+offset2 >= ito_w)):
+                                continue
+                            
                             fromy = m1+offset1
                             fromx = m2+offset2
                             toy = p[0]+offset1
@@ -183,7 +195,8 @@ def patchmatch(map, ffrom, fto, fpfrom, fpto, pwidth, searchrad, numiters=5):
                             f1 = ffrom[0][fromy][fromx] - fto[0][toy][tox]
                             f2 = fpfrom[0][fromy][fromx] - fpto[0][toy][tox]
                             loss += np.dot(f1,f1) + np.dot(f2,f2)
-                    losses[i] = loss
+                            num_pix += 1
+                    losses[i] = loss / num_pix
                 
                 #Take argument with lowest loss
                 i = np.argmin(losses)
@@ -196,24 +209,30 @@ def patchmatch(map, ffrom, fto, fpfrom, fpto, pwidth, searchrad, numiters=5):
                 #We do a square search block to make it easier
                 radius = searchrad
                 curloss = losses[i]
-                while (radius > 0.999):
+                while (radius >= 1):
                     #Get pixel
                     center = map[m1][m2]
-                    lowerrandh = round(max(0-lowerh,
+                    lowerrandh = round(max(0,
                         center[0]-radius))
-                    upperrandh = round(min(ito_h-upperh-1,
+                    upperrandh = round(min(ito_h-1,
                         center[0]+radius))
-                    lowerrandw = round(max(0-lowerw,
+                    lowerrandw = round(max(0,
                         center[1]-radius))
-                    upperrandw = round(min(ito_w-upperw-1,
+                    upperrandw = round(min(ito_w-1,
                         center[1]+radius))
                     testpix = [np.random.randint(lowerrandh,upperrandh+1),
                         np.random.randint(lowerrandw,upperrandw+1)]
                     
                     #Test pixel
                     loss = 0
+                    num_pix = 0
                     for offset1 in range(lowerh,upperh+1):
+                        if ((testpix[0]+offset1 < 0) or (testpix[0]+offset1 >= ito_h)):
+                            continue
                         for offset2 in range(lowerw,upperw+1):
+                            if ((testpix[1]+offset2 < 0) or (testpix[1]+offset2 >= ito_w)):
+                                continue
+                            
                             fromy = m1+offset1
                             fromx = m2+offset2
                             toy = testpix[0]+offset1
@@ -221,6 +240,8 @@ def patchmatch(map, ffrom, fto, fpfrom, fpto, pwidth, searchrad, numiters=5):
                             f1 = ffrom[0][fromy][fromx] - fto[0][toy][tox]
                             f2 = fpfrom[0][fromy][fromx] - fpto[0][toy][tox]
                             loss += np.dot(f1,f1) + np.dot(f2,f2)
+                            num_pix += 1
+                    loss = loss / num_pix
                     if (loss < curloss):
                         curloss = loss
                         mapchanged = True
