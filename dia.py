@@ -227,10 +227,12 @@ def patchmatch(map, ffrom, fto, fpfrom, fpto, pwidth, searchrad, numiters=5):
                     loss = 0
                     num_pix = 0
                     for offset1 in range(lowerh,upperh+1):
-                        if ((testpix[0]+offset1 < 0) or (testpix[0]+offset1 >= ito_h)):
+                        if ((testpix[0]+offset1 < 0) or
+                            (testpix[0]+offset1 >= ito_h)):
                             continue
                         for offset2 in range(lowerw,upperw+1):
-                            if ((testpix[1]+offset2 < 0) or (testpix[1]+offset2 >= ito_w)):
+                            if ((testpix[1]+offset2 < 0) or
+                                (testpix[1]+offset2 >= ito_w)):
                                 continue
                             
                             fromy = m1+offset1
