@@ -47,16 +47,22 @@ def upsample(map, newsize):
     map_w = map.shape[1]
     newmap = map*2
     #Cover edge cases of bad patches
+    '''
     for m1 in range(map_h):
         p = newmap[m1][0]
         newmap[m1][0] = [p[0],p[1]+1]
     for m2 in range(map_w):
         p = newmap[0][m2]
         newmap[0][m2] = [p[0]+1,p[1]]
+    '''
     newmap = np.repeat(newmap, 2, axis=0)
     newmap = np.repeat(newmap, 2, axis=1)
-    newmap = np.pad(newmap, pad_width=[[0,newsize[0]-newmap.shape[0]],
-        [0,newsize[1]-newmap.shape[1]],[0,0]], mode='edge')
+    while (newsize[0] < newmap.shape[0]):
+        newmap = np.delete(newmap, newmap.shape[0]-1, axis=0)
+    while (newsize[1] < newmap.shape[1]):
+        newmap = np.delete(newmap, newmap.shape[1]-1, axis=1)
+    #newmap = np.pad(newmap, pad_width=[[0,newsize[0]-newmap.shape[0]],
+    #    [0,newsize[1]-newmap.shape[1]],[0,0]], mode='edge')
     
     return newmap
 
@@ -341,9 +347,9 @@ def get_deep_image_analogy(image_A_path, image_Bp_path, **options):
         R_Bp = [None]*4
         for i in range(4):
             R_A_L = tf.Variable(tf.random_normal(
-                (1,)+single_conv_A[i][2]+(single_conv_A[i][3],), mean=10.0))
+                (1,)+single_conv_B[i][2]+(single_conv_B[i][3],), mean=10.0))
             warp_A = tf.placeholder(tf.float32,
-                (1,)+single_conv_A[i+1][2]+(single_conv_A[i+1][3],))
+                (1,)+single_conv_B[i+1][2]+(single_conv_B[i+1][3],))
             
             cost_A = vgg.get_block(R_A_L, i+2)
             cost_A = cost_A - warp_A
@@ -354,9 +360,9 @@ def get_deep_image_analogy(image_A_path, image_Bp_path, **options):
             R_A[i] = (op_A, warp_A, R_A_L, cost_A, clip_op)
             
             R_Bp_L = tf.Variable(tf.random_normal(
-                (1,)+single_conv_B[i][2]+(single_conv_B[i][3],), mean=10.0))
+                (1,)+single_conv_A[i][2]+(single_conv_A[i][3],), mean=10.0))
             warp_Bp = tf.placeholder(tf.float32,
-                (1,)+single_conv_B[i+1][2]+(single_conv_B[i+1][3],))
+                (1,)+single_conv_A[i+1][2]+(single_conv_A[i+1][3],))
             cost_Bp = vgg.get_block(R_Bp_L, i+2)
             cost_Bp = cost_Bp - warp_Bp
             cost_Bp = tf.reduce_sum(tf.multiply(cost_Bp, cost_Bp))
@@ -372,16 +378,16 @@ def get_deep_image_analogy(image_A_path, image_Bp_path, **options):
         R_Bp_full = [None]*5
         for i in range(5):
             R_A_full_L = tf.Variable(tf.random_normal(
-                (1,)+single_conv_A[0][2]+(3,)))
+                (1,)+single_conv_B[0][2]+(3,)))
             warp_A_full = tf.placeholder(tf.float32,
-                (1,)+single_conv_A[i][2]+(single_conv_A[i][3],))
+                (1,)+single_conv_B[i][2]+(single_conv_B[i][3],))
             
             full_block = R_A_full_L
             for x in range(i+1):
                 full_block = vgg.get_block(full_block, x+1)
             cost_A_full = warp_A_full - full_block
             cost_A_full = tf.reduce_sum(tf.multiply(cost_A_full, cost_A_full))
-            R_A_full_len = single_conv_A[0][2][0]*single_conv_A[0][2][1]
+            R_A_full_len = single_conv_B[0][2][0]*single_conv_B[0][2][1]
             bnds = [(-means[0], 255-means[0]),(-means[1], 255-means[1]),
                 (-means[2],255-means[2])]*R_A_full_len
             lbfgs_A_full = tf.contrib.opt.ScipyOptimizerInterface(cost_A_full,
@@ -390,9 +396,9 @@ def get_deep_image_analogy(image_A_path, image_Bp_path, **options):
             R_A_full[i] = (lbfgs_A_full, warp_A_full, R_A_full_L, cost_A_full)
             
             R_Bp_full_L = tf.Variable(tf.random_normal(
-                (1,)+single_conv_B[0][2]+(3,)))
+                (1,)+single_conv_A[0][2]+(3,)))
             warp_Bp_full = tf.placeholder(tf.float32,
-                (1,)+single_conv_B[i][2]+(single_conv_B[i][3],))
+                (1,)+single_conv_A[i][2]+(single_conv_A[i][3],))
             
             full_block = R_Bp_full_L
             for x in range(i+1):
@@ -400,7 +406,7 @@ def get_deep_image_analogy(image_A_path, image_Bp_path, **options):
             cost_Bp_full = warp_Bp_full - full_block
             cost_Bp_full = tf.reduce_sum(tf.multiply(cost_Bp_full,
                 cost_Bp_full))
-            R_Bp_full_len = single_conv_B[0][2][0]*single_conv_B[0][2][1]
+            R_Bp_full_len = single_conv_A[0][2][0]*single_conv_A[0][2][1]
             bnds = [(-means[0], 255-means[0]),(-means[1], 255-means[1]),
                 (-means[2],255-means[2])]*R_Bp_full_len
             lbfgs_Bp_full = tf.contrib.opt.ScipyOptimizerInterface(
@@ -528,8 +534,8 @@ def get_deep_image_analogy(image_A_path, image_Bp_path, **options):
                     R_Bp_full_L = sess.run(R_Bp_full[L-1][2])
                     saveimg(R_Bp_full_L, "./visualizations/{}_R_Bp_full_{}"
                         .format(starttime, L-1))
-                    R_Bp_L = sess.run(full_conv_B[L-2],
-                        feed_dict={B_raw_placeholder:R_Bp_full_L})
+                    R_Bp_L = sess.run(full_conv_A[L-2],
+                        feed_dict={A_raw_placeholder:R_Bp_full_L})
                 else:
                     print("Iterating on R_Bp")
                     #Per layer R
@@ -539,6 +545,7 @@ def get_deep_image_analogy(image_A_path, image_Bp_path, **options):
                             R_Bp[L-2][3]], feed_dict={R_Bp[L-2][1]:warp_Bp})
                         totalcost += cost
                         if (iter == 0):
+                            print("Initial cost: {}".format(cost))
                             oldcost = cost
                             totalcost = 0
                         elif (iter%numchecks==0):
@@ -581,8 +588,8 @@ def get_deep_image_analogy(image_A_path, image_Bp_path, **options):
                     R_A_full_L = sess.run(R_A_full[L-1][2])
                     saveimg(R_A_full_L, "./visualizations/{}_R_A_full_{}"
                         .format(starttime, L-1))
-                    R_A_L = sess.run(full_conv_A[L-2],
-                        feed_dict={A_raw_placeholder:R_A_full_L})
+                    R_A_L = sess.run(full_conv_B[L-2],
+                        feed_dict={B_raw_placeholder:R_A_full_L})
                 else:
                     print("Iterating on R_A")
                     totalcost = 0
@@ -591,6 +598,7 @@ def get_deep_image_analogy(image_A_path, image_Bp_path, **options):
                             R_A[L-2][3]], feed_dict={R_A[L-2][1]:warp_A})
                         totalcost += cost
                         if (iter == 0):
+                            print("Initial cost: {}".format(cost))
                             oldcost = cost
                             totalcost = 0
                         elif (iter%numchecks==0):
