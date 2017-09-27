@@ -270,6 +270,9 @@ def get_deep_image_analogy(image_A_path, image_Bp_path, **options):
     tau_A = options.get('tau_A', 0.05)
     tau_Bp = options.get('tau_Bp', 0.05)
     
+    #TODO: behavior not fully implemented
+    skip = False
+    
     starttime = int(time.time())
     if (debug):
         np.random.seed(123)
@@ -440,13 +443,13 @@ def get_deep_image_analogy(image_A_path, image_Bp_path, **options):
         
         
         #Initialize other feature containers
-        F_Ap = [None]*4
-        F_Ap.append(F_A[4])
-        F_B = [None]*4
-        F_B.append(F_Bp[4])
+        F_Ap = [None]*5
+        F_B = [None]*5
         F_A_normed = [None]*5
         F_Bp_normed = [None]*5
         for i in range(5):
+            F_Ap[i] = F_A[i]
+            F_B[i] = F_Bp[i]
             F_A_normed[i] = F_A[i]/np.linalg.norm(F_A[i],ord=2,axis=3,
                 keepdims=True)
             F_Bp_normed[i] = F_Bp[i]/np.linalg.norm(F_Bp[i],ord=2,axis=3,
@@ -459,28 +462,16 @@ def get_deep_image_analogy(image_A_path, image_Bp_path, **options):
         phi_a_b = phi_a_b.reshape(A_size+(2,))
         for y in range(A_size[0]):
             for x in range(A_size[1]):
-                lowerh = min(1,y)
-                upperh = min(1,A_size[0]-y-1)
-                lowerw = min(1,x)
-                upperw = min(1,A_size[1]-x-1)
                 phi_a_b[y][x] = np.array([
-                    np.random.randint(lowerh,B_size[0]-upperh),
-                    np.random.randint(lowerw,B_size[1]-upperw)])
+                    np.random.randint(0,B_size[0]),
+                    np.random.randint(0,B_size[1])])
         phi_b_a = np.zeros(B_size[0]*B_size[1]*2, dtype=np.int)
         phi_b_a = phi_b_a.reshape(B_size+(2,))
         for y in range(B_size[0]):
             for x in range(B_size[1]):
-                lowerh = min(1,y)
-                upperh = min(1,B_size[0]-y-1)
-                lowerw = min(1,x)
-                upperw = min(1,B_size[1]-x-1)
                 phi_b_a[y][x] = np.array([
-                    np.random.randint(lowerh,A_size[0]-upperh),
-                    np.random.randint(lowerw,A_size[1]-upperw)])
-        
-        if (debug):
-            utilities.testmap(phi_a_b)
-            utilities.testmap(phi_b_a)
+                    np.random.randint(0,A_size[0]),
+                    np.random.randint(0,A_size[1])])
         
         
         #Main loop
@@ -508,14 +499,13 @@ def get_deep_image_analogy(image_A_path, image_Bp_path, **options):
                 searchrads[L-1], pm_iters)
             
             if (debug):
-                utilities.testmap(phi_a_b)
-                utilities.testmap(phi_b_a)
                 utilities.visF(F_A[L-1], "./visualizations/{}_F_A_{}".format(
                     starttime, L))
                 utilities.visF(F_Bp[L-1], "./visualizations/{}_F_Bp_{}".format(
                     starttime, L))
             
-            if (L > 1):
+            #TODO: consider making this L > skip+1
+            if (L > 2 or (L > 1 and not skip)):
                 if (debug):
                     utilities.upmaptest(phi_a_b, Bp_raw, L-1, means,
                         './visualizations/{}_upmap_{}'.format(starttime, L))
@@ -534,7 +524,7 @@ def get_deep_image_analogy(image_A_path, image_Bp_path, **options):
                     R_Bp_full_L = sess.run(R_Bp_full[L-1][2])
                     saveimg(R_Bp_full_L, "./visualizations/{}_R_Bp_full_{}"
                         .format(starttime, L-1))
-                    R_Bp_L = sess.run(full_conv_A[L-2],
+                    R_Bp_L = sess.run(full_conv_A[L-2-skip],
                         feed_dict={A_raw_placeholder:R_Bp_full_L})
                 else:
                     print("Iterating on R_Bp")
@@ -565,15 +555,15 @@ def get_deep_image_analogy(image_A_path, image_Bp_path, **options):
                         .format(starttime, L-1))
                 
                 #Calc WA
-                featurenorms = np.linalg.norm(F_A[L-2], ord=2, axis=3,
+                featurenorms = np.linalg.norm(F_A[L-2-skip], ord=2, axis=3,
                     keepdims=True)
                 featurenorms = featurenorms*featurenorms
                 featurenorms = featurenorms - featurenorms.min()
                 featurenorms = featurenorms / featurenorms.max()
                 M_A = featurenorms>tau_A
-                W_A = alphas[L-2]*M_A
+                W_A = alphas[L-2-skip]*M_A
                 #Assign FAp_L
-                F_Ap[L-2] = F_A[L-2]*W_A + R_Bp_L*(1-W_A)
+                F_Ap[L-2-skip] = F_A[L-2-skip]*W_A + R_Bp_L*(1-W_A)
                 
                 
                 #Iteratively find RA
@@ -588,7 +578,7 @@ def get_deep_image_analogy(image_A_path, image_Bp_path, **options):
                     R_A_full_L = sess.run(R_A_full[L-1][2])
                     saveimg(R_A_full_L, "./visualizations/{}_R_A_full_{}"
                         .format(starttime, L-1))
-                    R_A_L = sess.run(full_conv_B[L-2],
+                    R_A_L = sess.run(full_conv_B[L-2-skip],
                         feed_dict={B_raw_placeholder:R_A_full_L})
                 else:
                     print("Iterating on R_A")
@@ -618,23 +608,17 @@ def get_deep_image_analogy(image_A_path, image_Bp_path, **options):
                         starttime, L-1))
                 
                 #Calc WBp
-                featurenorms = np.linalg.norm(F_Bp[L-2], ord=2, axis=3,
+                featurenorms = np.linalg.norm(F_Bp[L-2-skip], ord=2, axis=3,
                     keepdims=True)
                 featurenorms = featurenorms*featurenorms
                 featurenorms = featurenorms - featurenorms.min()
                 featurenorms = featurenorms / featurenorms.max()
                 M_Bp = featurenorms>tau_Bp
-                W_Bp = alphas[L-2]*M_Bp
+                W_Bp = alphas[L-2-skip]*M_Bp
                 #Assign FB_L
-                F_B[L-2] = F_Bp[L-2]*W_Bp + R_A_L*(1-W_Bp)
-                
-                #Upsample phi_a_b and phi_b_a
-                phi_a_b = upsample(phi_a_b, single_conv_A[L-2][2])
-                phi_b_a = upsample(phi_b_a, single_conv_B[L-2][2])
-                if (debug):
-                    utilities.testmap(phi_a_b)
-                    utilities.testmap(phi_b_a)
-            elif (zero_img):
+                F_B[L-2-skip] = F_Bp[L-2-skip]*W_Bp + R_A_L*(1-W_Bp)
+            
+            elif (zero_img and (L == skip+1)):
                 warp_Bp = average_map(phi_a_b, F_Bp[L-1], pwidths[L-1])
                 
                 if (full):
@@ -652,6 +636,11 @@ def get_deep_image_analogy(image_A_path, image_Bp_path, **options):
                     R_A_full_L = sess.run(R_A_full[L-1][2])
                     saveimg(R_A_full_L, "./visualizations/{}_R_A_full_{}"
                         .format(starttime, L-1))
+            
+            if (L > 1):
+                #Upsample phi_a_b and phi_b_a
+                phi_a_b = upsample(phi_a_b, single_conv_A[L-2][2])
+                phi_b_a = upsample(phi_b_a, single_conv_B[L-2][2])
         
         #Calc image_Ap
         Ap_raw = average_map(phi_a_b, Bp_raw, 5)
