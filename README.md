@@ -9,9 +9,10 @@ All code is licensed under the AGPL v3.0
 
 ### Pre-requisites
 
+* git (recommended)
 * Python (only 3.5 has been tested)
 * SciPy
-* TensorFlow
+* TensorFlow (1.3+)
 * numpy (TensorFlow pre-requisite)
 
 It is recommended to use pip to install these packages. Once they're installed, in a command prompt or terminal, navigate to a folder where you would like to store the folder containing these files and type
@@ -36,7 +37,7 @@ Recommended image sizes are 448x448 or 224x224. The program should accept either
 
 ### Performance
 
-The program is CPU-bound. The deconvolutions are multi-threaded, but patchmatch is currently single-threaded. My machine has an i5-6600k processer (3.5 GHz). The default operation, running on two 448x448 images, takes **7 hours and 35 minutes**. Every 20 deconvolution iterations takes ~6 minutes, and every 1 patchmatch iteration takes ~6 minutes. The default is 1000 deconv. iter. and 20 patchmatch iter.
+The program is CPU-bound. The deconvolutions are multi-threaded, but patchmatch is currently single-threaded. My machine has an i5-6600k processor (3.5 GHz). The default operation, running on two 448x448 images, takes **7 hours and 35 minutes**. Every 20 deconvolution iterations takes ~6 minutes, and every 1 patchmatch iteration takes ~6 minutes. The default is 1000 deconv. iter. and 20 patchmatch iter.
 
 If you'd like a preview of the final images, it's recommended to set deconvolutions to 30 iterations and patchmatch to 2 iterations. Like this
 
