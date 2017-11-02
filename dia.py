@@ -391,11 +391,13 @@ def get_deep_image_analogy(image_A_path, image_Bp_path, **options):
             cost_A_full = warp_A_full - full_block
             cost_A_full = tf.reduce_sum(tf.multiply(cost_A_full, cost_A_full))
             R_A_full_len = single_conv_B[0][2][0]*single_conv_B[0][2][1]
-            bnds = [(-means[0], 255-means[0]),(-means[1], 255-means[1]),
-                (-means[2],255-means[2])]*R_A_full_len
+            bnds = ([[[[-means[0],-means[1],-means[2]]]]],
+                [[[[255-means[0],255-means[1],255-means[2]]]]])
+            var_to_bnds={R_A_full_L:bnds}
             lbfgs_A_full = tf.contrib.opt.ScipyOptimizerInterface(cost_A_full,
-                bounds=bnds, var_list=[R_A_full_L], method='L-BFGS-B',
-                options={'maxcor':20, 'disp':True, 'maxiter':iterations})
+                var_to_bounds=var_to_bnds, var_list=[R_A_full_L],
+                method='L-BFGS-B', options={'maxcor':20, 'disp':True,
+                'maxiter':iterations})
             R_A_full[i] = (lbfgs_A_full, warp_A_full, R_A_full_L, cost_A_full)
             
             R_Bp_full_L = tf.Variable(tf.random_normal(
@@ -410,12 +412,13 @@ def get_deep_image_analogy(image_A_path, image_Bp_path, **options):
             cost_Bp_full = tf.reduce_sum(tf.multiply(cost_Bp_full,
                 cost_Bp_full))
             R_Bp_full_len = single_conv_A[0][2][0]*single_conv_A[0][2][1]
-            bnds = [(-means[0], 255-means[0]),(-means[1], 255-means[1]),
-                (-means[2],255-means[2])]*R_Bp_full_len
+            bnds = ([[[[-means[0],-means[1],-means[2]]]]],
+                [[[[255-means[0],255-means[1],255-means[2]]]]])
+            var_to_bnds={R_Bp_full_L:bnds}
             lbfgs_Bp_full = tf.contrib.opt.ScipyOptimizerInterface(
-                cost_Bp_full, bounds=bnds, var_list=[R_Bp_full_L],
-                method='L-BFGS-B', options={'maxcor':20, 'disp':True,
-                'maxiter':iterations})
+                cost_Bp_full, var_to_bounds=var_to_bnds,
+                var_list=[R_Bp_full_L], method='L-BFGS-B',
+                options={'maxcor':20, 'disp':True, 'maxiter':iterations})
             R_Bp_full[i] = (lbfgs_Bp_full, warp_Bp_full, R_Bp_full_L,
                 cost_Bp_full)
     
